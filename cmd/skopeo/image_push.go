@@ -105,26 +105,7 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 	return cmd
 }
 
-// parseMultiArch parses the list processing selection
-// It returns the copy.ImageListSelection to use with image.Copy option
-//func parseMultiArch(multiArch string) (copy.ImageListSelection, error) {
-//	switch multiArch {
-//	case "system":
-//		return copy.CopySystemImage, nil
-//	case "all":
-//		return copy.CopyAllImages, nil
-//	// There is no CopyNoImages value in copy.ImageListSelection, but because we
-//	// don't provide an option to select a set of images to copy, we can use
-//	// CopySpecificImages.
-//	case "index-only":
-//		return copy.CopySpecificImages, nil
-//	// We don't expose CopySpecificImages other than index-only above, because
-//	// we currently don't provide an option to choose the images to copy. That
-//	// could be added in the future.
-//	default:
-//		return copy.CopySystemImage, fmt.Errorf("unknown multi-arch option %q. Choose one of the supported options: 'system', 'all', or 'index-only'", multiArch)
-//	}
-//}
+
 
 func (opts *imagePushOptions) run(args []string, stdout io.Writer) (retErr error) {
 	if opts.registryUrl == "" {
@@ -137,9 +118,9 @@ func (opts *imagePushOptions) run(args []string, stdout io.Writer) (retErr error
 			return fmt.Errorf("registry file read error, %v", err)
 		}
 		for _, image := range imageList {
-			image = fmt.Sprint("docker://%s", image)
+			image = fmt.Sprintf("docker://%s", image)
 			imageTag := strings.Split(image, "/")[len(strings.Split(image, "/")) - 1]
-			pushImage := fmt.Sprintf("%s/%s", opts.registryUrl, imageTag)
+			pushImage := fmt.Sprintf("docker://%s/%s", opts.registryUrl, imageTag)
 			err := opts.pushImage([]string{image, pushImage}, stdout)
 			if err != nil {
 				fmt.Printf("pull image %s", image)
