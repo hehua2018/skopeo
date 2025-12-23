@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	commonFlag "github.com/containers/common/pkg/flag"
 	"github.com/containers/common/pkg/retry"
@@ -118,6 +119,8 @@ func (opts *imagePushOptions) run(args []string, stdout io.Writer) (retErr error
 		if err != nil {
 			return fmt.Errorf("registry file read error, %v", err)
 		}
+
+		var pushedImages []string
 		for _, image := range imageList {
 			image = fmt.Sprintf("docker://%s", image)
 			imageTag := strings.Split(image, "/")[len(strings.Split(image, "/")) - 1]
@@ -126,9 +129,21 @@ func (opts *imagePushOptions) run(args []string, stdout io.Writer) (retErr error
 			if err != nil {
 				fmt.Printf("pull image %s", image)
 				fmt.Printf("push image %s", pushImage)
+				fmt.Printf("push image error, %v", err)
+				time.Sleep(20 * time.Second)
 				return fmt.Errorf("push image error, %v", err)
 			}
+			pushedImages = append(pushedImages, fmt.Sprintf("%s/%s", opts.registryUrl, imageTag))
+			fmt.Printf("push image %s success", pushImage)
 		}
+		fmt.Println("\n ============ pushed images ============ \n")
+		fmt.Println("\"")
+		for _, img := range pushedImages {
+			fmt.Printf("\"%s\",\n", img)
+		}
+		fmt.Println("\"")
+		time.Sleep(20 * time.Second)
+		
 	} else {
 		return opts.pushImage(args, stdout)
 	}
