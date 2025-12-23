@@ -52,6 +52,7 @@ type imagePushOptions struct {
 
 func imagePushCmd(global *globalOptions) *cobra.Command {
 	sharedFlags, sharedOpts := sharedImageFlags()
+	sharedOpts.authFilePath = "auth.json"
 	deprecatedTLSVerifyFlags, deprecatedTLSVerifyOpt := deprecatedTLSVerifyFlags()
 	srcFlags, srcOpts := imageFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "src-", "screds")
 	destFlags, destOpts := imageDestFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "dest-", "dcreds")
@@ -63,8 +64,8 @@ func imagePushCmd(global *globalOptions) *cobra.Command {
 		retryOpts:           retryOpts,
 	}
 	cmd := &cobra.Command{
-		Use:   "copy [command options] SOURCE-IMAGE DESTINATION-IMAGE",
-		Short: "Copy an IMAGE-NAME from one location to another",
+		Use:   "image-push [command options] SOURCE-IMAGE DESTINATION-IMAGE",
+		Short: "image-push an IMAGE-NAME from one location to another",
 		Long: fmt.Sprintf(`Container "IMAGE-NAME" uses a "transport":"details" format.
 
 Supported transports:
