@@ -21,12 +21,8 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--authfile** _path_
 
-Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
-
-Use `skopeo login` to manage the credentials.
-
-The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
+Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `skopeo login`.
+If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
 **--cert-dir** _path_
 
@@ -94,12 +90,6 @@ The password to access the registry.
 **--no-tags**, **-n**
 
 Do not list the available tags from the repository in the output. When `true`, the `RepoTags` array will be empty.  Defaults to `false`, which includes all available tags.
-
-**--manifest-digest**=_algorithm_ **EXPERIMENTAL**
-
-Algorithm to use for computing manifest digest (sha256, sha512); defaults to algorithm used in config digest.
-
-**Note:** This flag is experimental and its behavior may change in future releases.
 
 ## EXAMPLES
 
@@ -190,12 +180,6 @@ amd64
 ```console
 $ /bin/skopeo inspect --format '{{ .Env }}' docker://registry.access.redhat.com/ubi8
 [PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin container=oci]
-```
-
-To get the digest using a specific algorithm:
-```console
-$ skopeo inspect --manifest-digest=sha512 docker://docker.io/library/alpine:latest --format "Digest: {{.Digest}}"
-Digest: sha512:5acb33fb56a7791bf0c69d5b19a1c70272148e4107be5261d57305d14e9509792bbca53e5277c456181ecfa1c20ad8427f9b8ba46868020584a819de1128dbd2
 ```
 
 # SEE ALSO

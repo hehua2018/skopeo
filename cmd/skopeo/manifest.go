@@ -6,11 +6,12 @@ import (
 	"io"
 	"os"
 
+	"github.com/containers/image/v5/manifest"
 	"github.com/spf13/cobra"
-	"go.podman.io/image/v5/manifest"
 )
 
-type manifestDigestOptions struct{}
+type manifestDigestOptions struct {
+}
 
 func manifestDigestCmd() *cobra.Command {
 	var opts manifestDigestOptions

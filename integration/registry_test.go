@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	binaryV2        = "registry"
+	binaryV2        = "registry-v2"
 	binaryV2Schema1 = "registry-v2-schema1"
 )
 
@@ -70,7 +70,7 @@ compatibility:
 		username = "testuser"
 		password = "testpassword"
 		email = "test@test.org"
-		if err := os.WriteFile(htpasswdPath, []byte(userpasswd), os.FileMode(0o644)); err != nil {
+		if err := os.WriteFile(htpasswdPath, []byte(userpasswd), os.FileMode(0644)); err != nil {
 			return nil, err
 		}
 		htpasswd = fmt.Sprintf(`auth:

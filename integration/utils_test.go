@@ -14,26 +14,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containers/image/v5/manifest"
 	"github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.podman.io/image/v5/manifest"
 )
 
-// FIXME: Move to SetupSuite
-// https://github.com/containers/skopeo/pull/2703#discussion_r2331374730
-var skopeoBinary = func() string {
-	if binary := os.Getenv("SKOPEO_BINARY"); binary != "" {
-		return binary
-	}
-	return "skopeo"
-}()
+const skopeoBinary = "skopeo"
 
-const (
-	testFQIN           = "docker://quay.io/libpod/busybox" // tag left off on purpose, some tests need to add a special one
-	testFQIN64         = "docker://quay.io/libpod/busybox:amd64"
-	testFQINMultiLayer = "docker://quay.io/libpod/alpine_nginx:latest" // multi-layer
-)
+const testFQIN = "docker://quay.io/libpod/busybox" // tag left off on purpose, some tests need to add a special one
+const testFQIN64 = "docker://quay.io/libpod/busybox:amd64"
+const testFQINMultiLayer = "docker://quay.io/libpod/alpine_nginx:latest" // multi-layer
 
 // consumeAndLogOutputStream takes (f, err) from an exec.*Pipe(), and causes all output to it to be logged to t.
 func consumeAndLogOutputStream(t *testing.T, id string, f io.ReadCloser, err error) {
@@ -64,7 +55,7 @@ func consumeAndLogOutputs(t *testing.T, id string, cmd *exec.Cmd) {
 }
 
 // combinedOutputOfCommand runs a command as if exec.Command().CombinedOutput(), verifies that the exit status is 0, and returns the output,
-// or terminates t on failure.
+// or terminates c on failure.
 func combinedOutputOfCommand(t *testing.T, name string, args ...string) string {
 	t.Logf("Running %s %s", name, strings.Join(args, " "))
 	out, err := exec.Command(name, args...).CombinedOutput()
@@ -73,7 +64,8 @@ func combinedOutputOfCommand(t *testing.T, name string, args ...string) string {
 }
 
 // assertSkopeoSucceeds runs a skopeo command as if exec.Command().CombinedOutput, verifies that the exit status is 0,
-// and optionally that the output matches a multi-line regexp if it is nonempty
+// and optionally that the output matches a multi-line regexp if it is nonempty;
+// or terminates c on failure
 func assertSkopeoSucceeds(t *testing.T, regexp string, args ...string) {
 	t.Logf("Running %s %s", skopeoBinary, strings.Join(args, " "))
 	out, err := exec.Command(skopeoBinary, args...).CombinedOutput()
@@ -83,8 +75,9 @@ func assertSkopeoSucceeds(t *testing.T, regexp string, args ...string) {
 	}
 }
 
-// assertSkopeoFails runs a skopeo command as if exec.Command().CombinedOutput, verifies that the exit status is not 0,
-// and that the output matches a multi-line regexp
+// assertSkopeoFails runs a skopeo command as if exec.Command().CombinedOutput, verifies that the exit status is 0,
+// and that the output matches a multi-line regexp;
+// or terminates c on failure
 func assertSkopeoFails(t *testing.T, regexp string, args ...string) {
 	t.Logf("Running %s %s", skopeoBinary, strings.Join(args, " "))
 	out, err := exec.Command(skopeoBinary, args...).CombinedOutput()
@@ -92,25 +85,15 @@ func assertSkopeoFails(t *testing.T, regexp string, args ...string) {
 	assert.Regexp(t, "(?s)"+regexp, string(out)) // (?s) : '.' will also match newlines
 }
 
-// assertSkopeoFailsWithStatus runs a skopeo command as if exec.Command().CombinedOutput,
-// and verifies that it fails with a specific exit status.
-func assertSkopeoFailsWithStatus(t *testing.T, status int, args ...string) {
-	t.Logf("Running %s %s", skopeoBinary, strings.Join(args, " "))
-	_, err := exec.Command(skopeoBinary, args...).CombinedOutput()
-	var exitErr *exec.ExitError
-	require.ErrorAs(t, err, &exitErr)
-	assert.Equal(t, status, exitErr.ExitCode())
-}
-
 // runCommandWithInput runs a command as if exec.Command(), sending it the input to stdin,
-// and verifies that the exit status is 0, or terminates t on failure.
+// and verifies that the exit status is 0, or terminates c on failure.
 func runCommandWithInput(t *testing.T, input string, name string, args ...string) {
 	cmd := exec.Command(name, args...)
 	runExecCmdWithInput(t, cmd, input)
 }
 
 // runExecCmdWithInput runs an exec.Cmd, sending it the input to stdin,
-// and verifies that the exit status is 0, or terminates t on failure.
+// and verifies that the exit status is 0, or terminates c on failure.
 func runExecCmdWithInput(t *testing.T, cmd *exec.Cmd, input string) {
 	t.Logf("Running %s %s", cmd.Path, strings.Join(cmd.Args, " "))
 	consumeAndLogOutputs(t, cmd.Path+" "+strings.Join(cmd.Args, " "), cmd)
@@ -183,8 +166,8 @@ func modifyEnviron(env []string, name, value string) []string {
 	return append(res, prefix+value)
 }
 
-// fileFromFixture applies edits to inputPath and returns a path to the temporary file with the edits,
-// which will be automatically removed when the test completes.
+// fileFromFixture applies edits to inputPath and returns a path to the temporary file.
+// Callers should defer os.Remove(the_returned_path)
 func fileFromFixture(t *testing.T, inputPath string, edits map[string]string) string {
 	contents, err := os.ReadFile(inputPath)
 	require.NoError(t, err)
@@ -197,7 +180,6 @@ func fileFromFixture(t *testing.T, inputPath string, edits map[string]string) st
 	file, err := os.CreateTemp("", "policy.json")
 	require.NoError(t, err)
 	path := file.Name()
-	t.Cleanup(func() { os.Remove(path) })
 
 	_, err = file.Write(contents)
 	require.NoError(t, err)

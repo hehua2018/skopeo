@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containers/image/v5/manifest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"go.podman.io/image/v5/manifest"
 )
 
 // This image is known to be x86_64 only right now
@@ -224,6 +224,7 @@ func (p *proxy) callGetRawBlob(args []any) (rval any, buf []byte, err error) {
 			content: buf,
 			err:     err,
 		}
+
 	}()
 	wg.Add(1)
 	go func() {
@@ -281,7 +282,7 @@ func newProxy() (*proxy, error) {
 	}
 
 	// Note ExtraFiles starts at 3
-	proc := exec.Command(skopeoBinary, "experimental-image-proxy", "--sockfd", "3")
+	proc := exec.Command("skopeo", "experimental-image-proxy", "--sockfd", "3")
 	proc.Stderr = os.Stderr
 	cmdLifecycleToParentIfPossible(proc)
 	proc.ExtraFiles = append(proc.ExtraFiles, theirfd)

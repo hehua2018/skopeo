@@ -3,9 +3,59 @@
 package main
 
 /*
- This command is still experimental. Documentation
- is available in
- docs-experimental/skopeo-experimental-image-proxy.1.md
+  This code is currently only intended to be used by ostree
+  to fetch content via containers.  The API is subject
+  to change.  A goal however is to stabilize the API
+  eventually as a full out-of-process interface to the
+  core containers/image library functionality.
+
+  To use this command, in a parent process create a
+  `socketpair()` of type `SOCK_SEQPACKET`.  Fork
+  off this command, and pass one half of the socket
+  pair to the child.  Providing it on stdin (fd 0)
+  is the expected default.
+
+  The protocol is JSON for the control layer,
+  and  a read side of a `pipe()` passed for large data.
+
+ Base JSON protocol:
+
+ request: { method: "MethodName": args: [arguments] }
+ reply: { success: bool, value: JSVAL, pipeid: number, error: string }
+
+ For any non-metadata i.e. payload data from `GetManifest`
+ and `GetBlob` the server will pass back the read half of a `pipe(2)` via FD passing,
+ along with a `pipeid` integer.
+
+ The expected flow looks like this:
+
+  - Initialize
+    And validate the returned protocol version versus
+	what your client supports.
+  - OpenImage docker://quay.io/someorg/example:latest
+    (returns an imageid)
+  - GetManifest imageid (and associated <pipeid>)
+  (Streaming read data from pipe)
+  - FinishPipe <pipeid>
+  - GetBlob imageid sha256:...
+  (Streaming read data from pipe)
+  - FinishPipe <pipeid>
+  - GetBlob imageid sha256:...
+  (Streaming read data from pipe)
+  - FinishPipe <pipeid>
+  - CloseImage imageid
+
+ You may interleave invocations of these methods, e.g. one
+ can also invoke `OpenImage` multiple times, as well as
+ starting multiple GetBlob requests before calling `FinishPipe`
+ on them.  The server will stream data into the pipefd
+ until `FinishPipe` is invoked.
+
+ Note that the pipe will not be closed by the server until
+ the client has invoked `FinishPipe`.  This is to ensure
+ that the client checks for errors.  For example, `GetBlob`
+ performs digest (e.g. sha256) verification and this must
+ be checked after all data has been written.
 */
 
 import (
@@ -20,24 +70,31 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/containers/common/pkg/retry"
+	"github.com/containers/image/v5/image"
+	"github.com/containers/image/v5/manifest"
+	"github.com/containers/image/v5/pkg/blobinfocache"
+	"github.com/containers/image/v5/transports"
+	"github.com/containers/image/v5/transports/alltransports"
+	"github.com/containers/image/v5/types"
 	"github.com/opencontainers/go-digest"
 	imgspecv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"go.podman.io/common/pkg/retry"
-	"go.podman.io/image/v5/image"
-	"go.podman.io/image/v5/manifest"
-	"go.podman.io/image/v5/pkg/blobinfocache"
-	"go.podman.io/image/v5/transports"
-	"go.podman.io/image/v5/transports/alltransports"
-	"go.podman.io/image/v5/types"
 )
 
 // protocolVersion is semantic version of the protocol used by this proxy.
 // The first version of the protocol has major version 0.2 to signify a
 // departure from the original code which used HTTP.
 //
-// When bumping this, please also update the man page.
+// 0.2.1: Initial version
+// 0.2.2: Added support for fetching image configuration as OCI
+// 0.2.3: Added GetFullConfig
+// 0.2.4: Added OpenImageOptional
+// 0.2.5: Added LayerInfoJSON
+// 0.2.6: Policy Verification before pulling OCI
+// 0.2.7: Added GetLayerInfoPiped
+// 0.2.8: Added GetRawBlob and reply.error_code
 const protocolVersion = "0.2.8"
 
 // maxMsgSize is the current limit on a packet size.

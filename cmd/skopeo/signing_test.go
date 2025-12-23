@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containers/image/v5/signature"
 	"github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.podman.io/image/v5/signature"
 )
 
 const (
 	// fixturesTestImageManifestDigest is the Docker manifest digest of "image.manifest.json"
 	fixturesTestImageManifestDigest = digest.Digest("sha256:20bf21ed457b390829cdbeec8795a7bea1626991fda603e0d01b4e7f60427e55")
 	// fixturesTestKeyFingerprint is the fingerprint of the private key.
-	fixturesTestKeyFingerprint = "08CD26E446E2E95249B7A405E932F44B23E8DD43"
+	fixturesTestKeyFingerprint = "1D8230F6CDB6A06716E414C1DB72F2188BB46CC8"
 	// fixturesTestKeyFingerprint is the key ID of the private key.
-	fixturesTestKeyShortID = "E932F44B23E8DD43"
+	fixturesTestKeyShortID = "DB72F2188BB46CC8"
 )
 
 // Test that results of runSkopeo failed with nothing on stdout, and substring
@@ -29,8 +29,7 @@ func assertTestFailed(t *testing.T, stdout string, err error, substring string) 
 }
 
 func TestStandaloneSign(t *testing.T) {
-	t.Setenv("GNUPGHOME", "fixtures")
-	mech, err := signature.NewGPGSigningMechanism()
+	mech, _, err := signature.NewEphemeralGPGSigningMechanism([]byte{})
 	require.NoError(t, err)
 	defer mech.Close()
 	if err := mech.SupportsSigning(); err != nil {
@@ -39,6 +38,7 @@ func TestStandaloneSign(t *testing.T) {
 
 	manifestPath := "fixtures/image.manifest.json"
 	dockerReference := "testing/manifest"
+	t.Setenv("GNUPGHOME", "fixtures")
 
 	// Invalid command-line arguments
 	for _, args := range [][]string{
@@ -87,6 +87,9 @@ func TestStandaloneSign(t *testing.T) {
 	require.NoError(t, err)
 	manifest, err := os.ReadFile(manifestPath)
 	require.NoError(t, err)
+	mech, err = signature.NewGPGSigningMechanism()
+	require.NoError(t, err)
+	defer mech.Close()
 	verified, err := signature.VerifyDockerManifestSignature(sig, manifest, dockerReference, mech, fixturesTestKeyFingerprint)
 	require.NoError(t, err)
 	assert.Equal(t, dockerReference, verified.DockerReference)

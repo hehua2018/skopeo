@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -9,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containers/image/v5/signature"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"go.podman.io/image/v5/signature"
 )
 
 const (
@@ -30,8 +29,9 @@ type signingSuite struct {
 var _ = suite.SetupAllSuite(&signingSuite{})
 
 func findFingerprint(lineBytes []byte) (string, error) {
-	for line := range bytes.SplitSeq(lineBytes, []byte{'\n'}) {
-		fields := strings.Split(string(line), ":")
+	lines := string(lineBytes)
+	for _, line := range strings.Split(lines, "\n") {
+		fields := strings.Split(line, ":")
 		if len(fields) >= 10 && fields[0] == "fpr" {
 			return fields[9], nil
 		}
@@ -57,7 +57,7 @@ func (s *signingSuite) SetupSuite() {
 
 func (s *signingSuite) TestSignVerifySmoke() {
 	t := s.T()
-	mech, err := signature.NewGPGSigningMechanism()
+	mech, _, err := signature.NewEphemeralGPGSigningMechanism([]byte{})
 	require.NoError(t, err)
 	defer mech.Close()
 	if err := mech.SupportsSigning(); err != nil { // FIXME? Test that verification and policy enforcement works, using signatures from fixtures

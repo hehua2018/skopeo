@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -22,7 +23,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type copyOptions struct {
+type imagePushOptions struct {
 	global                   *globalOptions
 	deprecatedTLSVerify      *deprecatedTLSVerifyOption
 	srcImage                 *imageOptions
@@ -45,16 +46,17 @@ type copyOptions struct {
 	encryptionKeys           []string                  // Keys needed to encrypt the image
 	decryptionKeys           []string                  // Keys needed to decrypt the image
 	imageParallelCopies      uint                      // Maximum number of parallel requests when copying images
+	registryUrl              string                    // Registry URL to use when pushing images
+	registryFile string                    // Registry file to use when pushing images
 }
 
-func copyCmd(global *globalOptions) *cobra.Command {
+func imagePushCmd(global *globalOptions) *cobra.Command {
 	sharedFlags, sharedOpts := sharedImageFlags()
-	sharedOpts.authFilePath = "auth.json"
 	deprecatedTLSVerifyFlags, deprecatedTLSVerifyOpt := deprecatedTLSVerifyFlags()
 	srcFlags, srcOpts := imageFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "src-", "screds")
 	destFlags, destOpts := imageDestFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "dest-", "dcreds")
 	retryFlags, retryOpts := retryFlags()
-	opts := copyOptions{global: global,
+	opts := imagePushOptions{global: global,
 		deprecatedTLSVerify: deprecatedTLSVerifyOpt,
 		srcImage:            srcOpts,
 		destImage:           destOpts,
@@ -93,6 +95,8 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 	flags.StringVar(&opts.signPassphraseFile, "sign-passphrase-file", "", "Read a passphrase for signing an image from `PATH`")
 	flags.StringVar(&opts.signIdentity, "sign-identity", "", "Identity of signed image, must be a fully specified docker reference. Defaults to the target docker reference.")
 	flags.StringVar(&opts.digestFile, "digestfile", "", "Write the digest of the pushed image to the specified file")
+	flags.StringVar(&opts.registryUrl, "registry_url", "", "Write the digest of the pushed image to the specified file")
+	flags.StringVar(&opts.registryFile, "registry_file", "image.txt", "Write the digest of the pushed image to the specified file")
 	flags.VarP(commonFlag.NewOptionalStringValue(&opts.format), "format", "f", `MANIFEST TYPE (oci, v2s1, or v2s2) to use in the destination (default is manifest type of source, with fallbacks)`)
 	flags.StringSliceVar(&opts.encryptionKeys, "encryption-key", []string{}, "*Experimental* key with the encryption protocol to use needed to encrypt the image (e.g. jwe:/path/to/key.pem)")
 	flags.IntSliceVar(&opts.encryptLayer, "encrypt-layer", []int{}, "*Experimental* the 0-indexed layer indices, with support for negative indexing (e.g. 0 is the first layer, -1 is the last layer)")
@@ -103,26 +107,55 @@ See skopeo(1) section "IMAGE NAMES" for the expected format
 
 // parseMultiArch parses the list processing selection
 // It returns the copy.ImageListSelection to use with image.Copy option
-func parseMultiArch(multiArch string) (copy.ImageListSelection, error) {
-	switch multiArch {
-	case "system":
-		return copy.CopySystemImage, nil
-	case "all":
-		return copy.CopyAllImages, nil
-	// There is no CopyNoImages value in copy.ImageListSelection, but because we
-	// don't provide an option to select a set of images to copy, we can use
-	// CopySpecificImages.
-	case "index-only":
-		return copy.CopySpecificImages, nil
-	// We don't expose CopySpecificImages other than index-only above, because
-	// we currently don't provide an option to choose the images to copy. That
-	// could be added in the future.
-	default:
-		return copy.CopySystemImage, fmt.Errorf("unknown multi-arch option %q. Choose one of the supported options: 'system', 'all', or 'index-only'", multiArch)
+//func parseMultiArch(multiArch string) (copy.ImageListSelection, error) {
+//	switch multiArch {
+//	case "system":
+//		return copy.CopySystemImage, nil
+//	case "all":
+//		return copy.CopyAllImages, nil
+//	// There is no CopyNoImages value in copy.ImageListSelection, but because we
+//	// don't provide an option to select a set of images to copy, we can use
+//	// CopySpecificImages.
+//	case "index-only":
+//		return copy.CopySpecificImages, nil
+//	// We don't expose CopySpecificImages other than index-only above, because
+//	// we currently don't provide an option to choose the images to copy. That
+//	// could be added in the future.
+//	default:
+//		return copy.CopySystemImage, fmt.Errorf("unknown multi-arch option %q. Choose one of the supported options: 'system', 'all', or 'index-only'", multiArch)
+//	}
+//}
+
+func (opts *imagePushOptions) run(args []string, stdout io.Writer) (retErr error) {
+	if opts.registryUrl == "" {
+		return fmt.Errorf("registry file is not supported")
 	}
+
+	if opts.registryFile != "" {
+		imageList , err :=readLines(opts.registryFile) 
+		if err != nil {
+			return fmt.Errorf("registry file read error, %v", err)
+		}
+		for _, image := range imageList {
+			image = fmt.Sprint("docker://%s", image)
+			imageTag := strings.Split(image, "/")[len(strings.Split(image, "/")) - 1]
+			pushImage := fmt.Sprintf("%s/%s", opts.registryUrl, imageTag)
+			err := opts.pushImage([]string{image, pushImage}, stdout)
+			if err != nil {
+				fmt.Printf("pull image %s", image)
+				fmt.Printf("push image %s", pushImage)
+				return fmt.Errorf("push image error, %v", err)
+			}
+		}
+	} else {
+		return opts.pushImage(args, stdout)
+	}
+
+	return nil
 }
 
-func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
+func (opts *imagePushOptions) pushImage(args []string, stdout io.Writer) (retErr error) {
+
 	if len(args) != 2 {
 		return errorShouldDisplayUsage{errors.New("Exactly two arguments expected")}
 	}
@@ -238,9 +271,6 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 		decConfig = cc.DecryptConfig
 	}
 
-	// c/image/copy.Image does allow creating both simple signing and sigstore signatures simultaneously,
-	// with independent passphrases, but that would make the CLI probably too confusing.
-	// For now, use the passphrase with either, but only one of them.
 	if opts.signPassphraseFile != "" && opts.signByFingerprint != "" && opts.signBySigstorePrivateKey != "" {
 		return fmt.Errorf("Only one of --sign-by and sign-by-sigstore-private-key can be used with sign-passphrase-file")
 	}
@@ -319,4 +349,20 @@ func (opts *copyOptions) run(args []string, stdout io.Writer) (retErr error) {
 		}
 		return nil
 	}, opts.retryOpts)
+
+}
+
+
+func readLines(filePath string) ([]string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err	
+	}
+	defer file.Close()
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines, scanner.Err()
 }

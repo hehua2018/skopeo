@@ -26,10 +26,8 @@ type skopeoSuite struct {
 	regV2WithAuth *testRegistryV2
 }
 
-var (
-	_ = suite.SetupAllSuite(&skopeoSuite{})
-	_ = suite.TearDownAllSuite(&skopeoSuite{})
-)
+var _ = suite.SetupAllSuite(&skopeoSuite{})
+var _ = suite.TearDownAllSuite(&skopeoSuite{})
 
 func (s *skopeoSuite) SetupSuite() {
 	t := s.T()
@@ -52,7 +50,7 @@ func (s *skopeoSuite) TearDownSuite() {
 
 func (s *skopeoSuite) TestVersion() {
 	t := s.T()
-	assertSkopeoSucceeds(t, fmt.Sprintf(".*skopeo version %s.*", version.Version),
+	assertSkopeoSucceeds(t, fmt.Sprintf(".*%s version %s.*", skopeoBinary, version.Version),
 		"--version")
 }
 
@@ -109,8 +107,7 @@ func (s *skopeoSuite) TestCopyWithLocalAuth() {
 		"login", "--tls-verify=false", "--username="+s.regV2WithAuth.username, "--password="+s.regV2WithAuth.password, s.regV2WithAuth.url)
 	// copy to private registry using local authentication
 	imageName := fmt.Sprintf("docker://%s/busybox:mine", s.regV2WithAuth.url)
-	assertSkopeoSucceeds(t, "", "copy", "--dest-tls-verify=false", "--retry-times", "3",
-		testFQIN+":latest", imageName)
+	assertSkopeoSucceeds(t, "", "copy", "--dest-tls-verify=false", testFQIN+":latest", imageName)
 	// inspect from private registry
 	assertSkopeoSucceeds(t, "", "inspect", "--tls-verify=false", imageName)
 	// logout from the registry

@@ -33,9 +33,7 @@ Most commands refer to container images, using a _transport_`:`_details_ format.
   An existing local directory _path_ storing the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
 
   **docker://**_docker-reference_
-  An image in a registry implementing the "Docker Registry HTTP API V2".
-  Credentials are typically managed using `(skopeo login)`;
-  see **containers-auth.json**(5) for more details about the credential search mechanism.
+  An image in a registry implementing the "Docker Registry HTTP API V2". By default, uses the authorization state in either `$XDG_RUNTIME_DIR/containers/auth.json`, which is set using `(skopeo login)`. If the authorization state is not found there, `$HOME/.docker/config.json` is checked, which is set using `(docker login)`.
 
   **docker-archive:**_path_[**:**_docker-reference_]
   An image is stored in the `docker save` formatted file.  _docker-reference_ is only used when creating such a file, and it must not contain a digest.
@@ -95,10 +93,6 @@ Use registry configuration files in _dir_ (e.g. for container signature storage)
 **--tmpdir** _dir_
 
 Directory used to store temporary files. Defaults to /var/tmp.
-
-**--user-agent-prefix** _prefix_
-
-Prefix to add to the user agent string. The resulting user agent will be in the format "_prefix_ skopeo/_version_".
 
 **--version**, **-v**
 

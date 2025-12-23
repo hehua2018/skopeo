@@ -9,27 +9,26 @@
 
 %global gomodulesmode GO111MODULE=on
 
-# Distro and environment conditionals
+# No btrfs on RHEL
 %if %{defined fedora}
-# Fedora conditionals
 %define build_with_btrfs 1
-%define conditional_epoch 1
-%if %{?fedora} >= 43
-%define sequoia 1
 %endif
-%else
-# RHEL conditionals
-%define conditional_epoch 2
+
+%if %{defined rhel}
 %define fips 1
 %endif
 
-# set higher Epoch only for podman-next builds
-%if %{defined copr_username} && "%{copr_username}" == "rhcontainerbot" && "%{copr_projectname}" == "podman-next"
-%define next_build 1
+# Only used in official koji builds
+# Copr builds set a separate epoch for all environments
+%if %{defined fedora}
+%define conditional_epoch 1
+%define fakeroot 1
+%else
+%define conditional_epoch 2
 %endif
 
 Name: skopeo
-%if %{defined next_build}
+%if %{defined copr_username}
 Epoch: 102
 %else
 Epoch: %{conditional_epoch}
@@ -64,25 +63,26 @@ BuildRequires: go-rpm-macros
 %endif
 BuildRequires: gpgme-devel
 BuildRequires: libassuan-devel
+BuildRequires: ostree-devel
 BuildRequires: glib2-devel
 BuildRequires: make
 BuildRequires: shadow-utils-subid-devel
-BuildRequires: sqlite-devel
 Requires: containers-common >= 4:1-21
-%if %{defined sequoia}
-Requires: podman-sequoia
-%endif
 
 %description
 Command line utility to inspect images and repositories directly on Docker
-registries without the need to pull them.
+registries without the need to pull them
 
 # NOTE: The tests subpackage is only intended for testing and will not be supported
 # for end-users and/or customers.
 %package tests
-Summary: Test dependencies for %{name}
+Summary: Tests for %{name}
 
 Requires: %{name} = %{epoch}:%{version}-%{release}
+Requires: bats
+%if %{defined fakeroot}
+Requires: fakeroot
+%endif
 Requires: gnupg
 Requires: jq
 Requires: golang
@@ -91,12 +91,11 @@ Requires: crun
 Requires: httpd-tools
 Requires: openssl
 Requires: squashfs-tools
-# bats and fakeroot are not present on RHEL and ELN so they shouldn't be strong deps
-Recommends: bats
-Recommends: fakeroot
 
 %description tests
-This package installs system test dependencies for %{name}
+%{summary}
+
+This package contains system tests for %{name}
 
 %prep
 %autosetup -Sgit %{name}-%{version}
@@ -119,7 +118,7 @@ CGO_CFLAGS=$(echo $CGO_CFLAGS | sed 's/-specs=\/usr\/lib\/rpm\/redhat\/redhat-an
 export CGO_CFLAGS="$CGO_CFLAGS -m64 -mtune=generic -fcf-protection=full"
 %endif
 
-BASEBUILDTAGS="$(hack/libsubid_tag.sh) libsqlite3"
+BASEBUILDTAGS="$(hack/libsubid_tag.sh)"
 %if %{defined build_with_btrfs}
 export BUILDTAGS="$BASEBUILDTAGS $(hack/btrfs_installed_tag.sh)"
 %else
@@ -128,10 +127,6 @@ export BUILDTAGS="$BASEBUILDTAGS exclude_graphdriver_btrfs"
 
 %if %{defined fips}
 export BUILDTAGS="$BUILDTAGS libtrust_openssl"
-%endif
-
-%if %{defined sequoia}
-export BUILDTAGS="$BUILDTAGS containers_image_sequoia"
 %endif
 
 # unset LDFLAGS earlier set from set_build_flags
@@ -145,6 +140,10 @@ make \
     DESTDIR=%{buildroot} \
     PREFIX=%{_prefix} \
     install-binary install-docs install-completions
+
+# system tests
+install -d -p %{buildroot}/%{_datadir}/%{name}/test/system
+cp -pav systemtest/* %{buildroot}/%{_datadir}/%{name}/test/system/
 
 #define license tag if not already defined
 %{!?_licensedir:%global license %doc}
@@ -166,8 +165,9 @@ make \
 %dir %{_datadir}/zsh/site-functions
 %{_datadir}/zsh/site-functions/_%{name}
 
-# Only test dependencies installed, no files.
 %files tests
+%license LICENSE vendor/modules.txt
+%{_datadir}/%{name}/test
 
 %changelog
 %autochangelog

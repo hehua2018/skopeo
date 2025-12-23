@@ -64,17 +64,15 @@ _run_setup() {
     # things directly on the host VM.  Fortunately they're all
     # located in the container under /usr/local/bin
     msg "Accessing contents of $SKOPEO_CIDEV_CONTAINER_FQIN"
-    podman pull --retry 3 --quiet $SKOPEO_CIDEV_CONTAINER_FQIN
+    podman pull --quiet $SKOPEO_CIDEV_CONTAINER_FQIN
     mnt=$(podman mount $(podman create $SKOPEO_CIDEV_CONTAINER_FQIN))
 
     # The container and VM images are built in tandem in the same repo.
     # automation, but the sources are in different directories.  It's
     # possible for a mismatch to happen, but should (hopefully) be unlikely.
     # Double-check to make sure.
-    # Temporarily, allow running on Rawhide VMs and consuming older binaries:
-    # that should be compatible enough. Eventually, we’ll stop using Rawhide again.
-    if ! grep -Fqx "ID=$OS_RELEASE_ID" $mnt/etc/os-release || \
-       { ! [[ "$VM_IMAGE_NAME" =~ "rawhide" ]] && ! grep -Fqx "VERSION_ID=$OS_RELEASE_VER" $mnt/etc/os-release; } then
+    if ! fgrep -qx "ID=$OS_RELEASE_ID" $mnt/etc/os-release || \
+       ! fgrep -qx "VERSION_ID=$OS_RELEASE_VER" $mnt/etc/os-release; then
             die "Somehow $SKOPEO_CIDEV_CONTAINER_FQIN is not based on $OS_REL_VER."
     fi
     msg "Copying test binaries from $SKOPEO_CIDEV_CONTAINER_FQIN /usr/local/bin/"
@@ -99,7 +97,7 @@ _run_vendor() {
 
 _run_build() {
     make bin/skopeo BUILDTAGS="$BUILDTAGS"
-    make install PREFIX=/usr/local BUILDTAGS="$BUILDTAGS"
+    make install PREFIX=/usr/local
 }
 
 _run_cross() {

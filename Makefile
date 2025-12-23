@@ -24,12 +24,10 @@ GOBIN := $(shell $(GO) env GOBIN)
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
-SEQUOIA_SONAME_DIR =
-
 # N/B: This value is managed by Renovate, manual changes are
 # possible, as long as they don't disturb the formatting
 # (i.e. DO NOT ADD A 'v' prefix!)
-GOLANGCI_LINT_VERSION := 2.7.2
+GOLANGCI_LINT_VERSION := 2.1.6
 
 ifeq ($(GOBIN),)
 GOBIN := $(GOPATH)/bin
@@ -55,9 +53,10 @@ ifeq ($(GOOS), linux)
   endif
 endif
 
-# If $TESTFLAGS is set, it is passed as extra arguments to 'go test' on integration tests.
+# If $TESTFLAGS is set, it is passed as extra arguments to 'go test'.
 # You can select certain tests to run, with `-run <regex>` for example:
 #
+#     make test-unit TESTFLAGS='-run ^TestManifestDigest$'
 #     make test-integration TESTFLAGS='-run copySuite.TestCopy.*'
 export TESTFLAGS ?= -timeout=15m
 
@@ -83,16 +82,17 @@ endif
 CONTAINER_GOSRC = /src/github.com/containers/skopeo
 CONTAINER_RUN ?= $(CONTAINER_CMD) --security-opt label=disable -v $(CURDIR):$(CONTAINER_GOSRC) -w $(CONTAINER_GOSRC) $(SKOPEO_CIDEV_CONTAINER_FQIN)
 
+GIT_COMMIT := $(shell GIT_CEILING_DIRECTORIES=$$(cd ..; pwd) git rev-parse HEAD 2> /dev/null || true)
+
 EXTRA_LDFLAGS ?=
-SKOPEO_LDFLAGS := -ldflags '-X go.podman.io/image/v5/signature/internal/sequoia.sequoiaLibraryDir=$(SEQUOIA_SONAME_DIR) $(EXTRA_LDFLAGS)'
+SKOPEO_LDFLAGS := -ldflags '-X main.gitCommit=${GIT_COMMIT} $(EXTRA_LDFLAGS)'
 
 MANPAGES_MD = $(wildcard docs/*.md)
 MANPAGES ?= $(MANPAGES_MD:%.md=%)
 
 BTRFS_BUILD_TAG = $(shell hack/btrfs_installed_tag.sh)
 LIBSUBID_BUILD_TAG = $(shell hack/libsubid_tag.sh)
-SQLITE_BUILD_TAG = $(shell hack/sqlite_tag.sh)
-LOCAL_BUILD_TAGS = $(BTRFS_BUILD_TAG) $(LIBSUBID_BUILD_TAG) $(SQLITE_BUILD_TAG)
+LOCAL_BUILD_TAGS = $(BTRFS_BUILD_TAG) $(LIBSUBID_BUILD_TAG)
 BUILDTAGS += $(LOCAL_BUILD_TAGS)
 
 ifeq ($(DISABLE_CGO), 1)
@@ -201,19 +201,10 @@ test-integration:
 		$(MAKE) test-integration-local
 
 
-# Helper target to set up SKOPEO_BINARY variable for local test targets
-# SKOPEO_BINARY only takes effect on `test-integration-local` and
-# `test-system-local` targets. It's not propagated into the container used for `test-integration` and
-# `test-system`. These targets will (build and) use skopeo binary at
-# ./bin/skopeo.
-.eval-skopeo-binary: $(if $(SKOPEO_BINARY),,bin/skopeo)
-	$(eval SKOPEO_BINARY := $(or $(SKOPEO_BINARY),./bin/skopeo))
-	@echo "Testing with $(SKOPEO_BINARY) ..."
-
-# Primarily intended for CI.
-test-integration-local: .eval-skopeo-binary
+# Intended for CI, assumed to be running in quay.io/libpod/skopeo_cidev container.
+test-integration-local: bin/skopeo
 	hack/warn-destructive-tests.sh
-	cd ./integration && SKOPEO_BINARY="$(abspath $(SKOPEO_BINARY))" $(GO) test $(SKOPEO_LDFLAGS) $(TESTFLAGS) $(if $(BUILDTAGS),-tags "$(BUILDTAGS)")
+	hack/test-integration.sh
 
 # complicated set of options needed to run podman-in-podman
 test-system:
@@ -227,8 +218,8 @@ test-system:
 	$(CONTAINER_RUNTIME) unshare rm -rf $$DTEMP; # This probably doesn't work with Docker, oh well, better than nothing... \
 	exit $$rc
 
-# Primarily intended for CI.
-test-system-local: .eval-skopeo-binary
+# Intended for CI, assumed to already be running in quay.io/libpod/skopeo_cidev container.
+test-system-local: bin/skopeo
 	hack/warn-destructive-tests.sh
 	hack/test-system.sh
 
@@ -242,13 +233,10 @@ validate:
 # This target is only intended for development, e.g. executing it from an IDE. Use (make test) for CI or pre-release testing.
 test-all-local: validate-local validate-docs test-unit-local
 
-.PHONY: fmt
-fmt: tools
-	$(GOBIN)/golangci-lint fmt
-
 .PHONY: validate-local
-validate-local: tools
+validate-local:
 	hack/validate-git-marks.sh
+	hack/validate-gofmt.sh
 	$(GOBIN)/golangci-lint run --build-tags "${BUILDTAGS}"
 	# An extra run with --tests=false allows detecting code unused outside of tests;
 	# ideally the linter should be able to find this automatically.
@@ -263,7 +251,7 @@ validate-docs: bin/skopeo
 	hack/xref-helpmsgs-manpages
 
 test-unit-local:
-	$(GO) test $(SKOPEO_LDFLAGS) -tags "$(BUILDTAGS)" $$($(GO) list -tags "$(BUILDTAGS)" -e ./... | grep -v '^github\.com/containers/skopeo/\(integration\|vendor/.*\)$$')
+	$(GO) test -tags "$(BUILDTAGS)" $$($(GO) list -tags "$(BUILDTAGS)" -e ./... | grep -v '^github\.com/containers/skopeo/\(integration\|vendor/.*\)$$')
 
 vendor:
 	$(GO) mod tidy
@@ -272,3 +260,8 @@ vendor:
 
 vendor-in-container:
 	podman run --privileged --rm --env HOME=/root -v $(CURDIR):/src -w /src golang $(MAKE) vendor
+
+# CAUTION: This is not a replacement for RPMs provided by your distro.
+# Only intended to build and test the latest unreleased changes.
+rpm:
+	rpkg local

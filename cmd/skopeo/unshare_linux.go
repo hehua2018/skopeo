@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/containers/image/v5/transports/alltransports"
+	"github.com/containers/storage/pkg/unshare"
 	"github.com/moby/sys/capability"
-	"go.podman.io/image/v5/transports/alltransports"
-	"go.podman.io/storage/pkg/unshare"
 )
 
 var neededCapabilities = []capability.Cap{
@@ -16,7 +16,6 @@ var neededCapabilities = []capability.Cap{
 	capability.CAP_FSETID,
 	capability.CAP_MKNOD,
 	capability.CAP_SETFCAP,
-	capability.CAP_SYS_ADMIN,
 }
 
 func maybeReexec() error {

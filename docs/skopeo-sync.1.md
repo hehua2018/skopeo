@@ -39,20 +39,16 @@ the images in the list, and the list itself.
 
 **--authfile** _path_
 
-Path of the primary registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the credential search mechanism and defaults on other platforms.
-
-Use `skopeo login` to manage the credentials.
-
-The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
+Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json, which is set using `skopeo login`.
+If the authorization state is not found there, $HOME/.docker/config.json is checked, which is set using `docker login`.
 
 **--src-authfile** _path_
 
-Path of the primary registry credentials file for the source registry. Uses path given by `--authfile`, if not provided.
+Path of the authentication file for the source registry. Uses path given by `--authfile`, if not provided.
 
 **--dest-authfile** _path_
 
-Path of the primary registry credentials file for the destination registry. Uses path given by `--authfile`, if not provided.
+Path of the authentication file for the destination registry. Uses path given by `--authfile`, if not provided.
 
 **--dry-run**
 
@@ -103,14 +99,9 @@ See containers-sigstore-signing-params.yaml(5) for details about the file format
 
 Add a sigstore signature using a private key at _path_ for an image name corresponding to _destination-image_
 
-**--sign-by-sq-fingerprint** _fingerprint_
-
-Add a “simple signing” signature using a Sequoia-PGP key with the specified _fingerprint_.
-
 **--sign-passphrase-file** _path_
 
-The passphrase to use when signing with `--sign-by`, `--sign-by-sigstore-private-key` or `--sign-by-sq-fingerprint`.
-Only the first line will be read. A passphrase stored in a file is of questionable security if other users can read this file. Do not use this option if at all avoidable.
+The passphare to use when signing with `--sign-by` or `--sign-by-sigstore-private-key`. Only the first line will be read. A passphrase stored in a file is of questionable security if other users can read this file. Do not use this option if at all avoidable.
 
 **--src-creds** _username[:password]_ for accessing the source registry.
 

@@ -136,8 +136,6 @@ END_PUSH
     # Done pushing. Now try to fetch. From here on we use the --policy option.
     # The table below lists the paths to fetch, and the expected errors (or
     # none, if we expect them to pass).
-    #
-    # "Invalid GPG signature" is reported by the gpgme mechanism; "Missing key: $fingerprint" by Sequoia.
     while read path expected_error; do
         expected_rc=
         if [[ -n $expected_error ]]; then
@@ -156,7 +154,7 @@ END_PUSH
         fi
     done <<END_TESTS
 /myns/alice:signed
-/myns/bob:signedbyalice    (Invalid GPG signature|Missing key:)
+/myns/bob:signedbyalice    Invalid GPG signature
 /myns/alice:unsigned       Signature for identity \\\\\\\\"localhost:5000/myns/alice:signed\\\\\\\\" is not accepted
 /myns/carol:latest         Running image docker://localhost:5000/myns/carol:latest is rejected by policy.
 /open/forall:latest

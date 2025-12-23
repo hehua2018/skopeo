@@ -3,10 +3,10 @@ package main
 import (
 	"io"
 
+	"github.com/containers/common/pkg/auth"
+	commonFlag "github.com/containers/common/pkg/flag"
+	"github.com/containers/image/v5/types"
 	"github.com/spf13/cobra"
-	"go.podman.io/common/pkg/auth"
-	commonFlag "go.podman.io/common/pkg/flag"
-	"go.podman.io/image/v5/types"
 )
 
 type logoutOptions struct {
@@ -28,8 +28,8 @@ func logoutCmd(global *globalOptions) *cobra.Command {
 	}
 	adjustUsage(cmd)
 	flags := cmd.Flags()
-	flags.AddFlagSet(auth.GetLogoutFlags(&opts.logoutOpts))
 	commonFlag.OptionalBoolFlag(flags, &opts.tlsVerify, "tls-verify", "require HTTPS and verify certificates when accessing the registry")
+	flags.AddFlagSet(auth.GetLogoutFlags(&opts.logoutOpts))
 	return cmd
 }
 

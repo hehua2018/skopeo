@@ -8,7 +8,8 @@ skopeo\-logout - Logout of a container registry.
 
 ## DESCRIPTION
 **skopeo logout** logs out of a specified registry server by deleting the cached credentials
-stored in the **auth.json** file. The path of the credentials file can be overridden by the user by setting the **authfile** flag.
+stored in the **auth.json** file. The path of the authentication file can be overridden by the user by setting the **authfile** flag.
+The default path used is **${XDG\_RUNTIME\_DIR}/containers/auth.json**.
 All the cached credentials can be removed by setting the **all** flag.
 
 ## OPTIONS
@@ -17,10 +18,10 @@ See also [skopeo(1)](skopeo.1.md) for options placed before the subcommand name.
 
 **--authfile**=*path*
 
-Path of the managed registry credentials file. On Linux, the default is ${XDG\_RUNTIME\_DIR}/containers/auth.json.
-See **containers-auth.json**(5) for more details about the default on other platforms.
+Path of the authentication file. Default is ${XDG\_RUNTIME\_DIR}/containers/auth.json
 
-The default value of this option is read from the `REGISTRY\_AUTH\_FILE` environment variable.
+Note: You can also override the default path of the authentication file by setting the REGISTRY\_AUTH\_FILE
+environment variable. `export REGISTRY_AUTH_FILE=path`
 
 **--compat-auth-file**=*path*
 
