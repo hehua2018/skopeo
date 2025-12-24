@@ -53,7 +53,10 @@ type imagePushOptions struct {
 
 func imagePushCmd(global *globalOptions) *cobra.Command {
 	sharedFlags, sharedOpts := sharedImageFlags()
-	sharedOpts.authFilePath = "auth.json"
+	authFile := "auth.json"
+	if _,err := os.Stat(authFile); err == nil {
+		sharedOpts.authFilePath = authFile
+	}
 	deprecatedTLSVerifyFlags, deprecatedTLSVerifyOpt := deprecatedTLSVerifyFlags()
 	srcFlags, srcOpts := imageFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "src-", "screds")
 	destFlags, destOpts := imageDestFlags(global, sharedOpts, deprecatedTLSVerifyOpt, "dest-", "dcreds")

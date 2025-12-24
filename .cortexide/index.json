@@ -1,0 +1,66 @@
+[
+  {
+    "uri": "/export/golang/skopeo/cmd/skopeo/image_push.go",
+    "symbols": [
+      "imagePushOptions",
+      "global",
+      "deprecatedTLSVerify",
+      "srcImage",
+      "destImage",
+      "retryOpts",
+      "additionalTags",
+      "removeSignatures",
+      "signByFingerprint",
+      "signBySigstoreParamFile",
+      "signBySigstorePrivateKey",
+      "signPassphraseFile",
+      "signIdentity",
+      "digestFile",
+      "format",
+      "quiet",
+      "all",
+      "multiArch",
+      "preserveDigests",
+      "encryptLayer",
+      "encryptionKeys",
+      "decryptionKeys",
+      "imageParallelCopies",
+      "registryUrl",
+      "registryFile",
+      "imagePushCmd",
+      "(*imagePushOptions).run",
+      "(*imagePushOptions).pushImage",
+      "readLines"
+    ],
+    "snippet": "package main\n\nimport (\n\t\"bufio\"\n\t\"errors\"\n\t\"fmt\"\n\t\"io\"\n\t\"os\"\n\t\"strings\"\n\t\"time\"\n\n\tcommonFlag \"github.com/containers/common/pkg/flag\"\n\t\"github.com/containers/common/pkg/retry\"\n\t\"github.com/containers/image/v5/copy\"\n\t\"github.com/containers/image/v5/docker/reference\"\n\t\"github.com/containers/image/v5/manifest\"\n\t\"github.com/containers/image/v5/pkg/cli\"\n\t\"github.com/containers/image/v5/pkg/cli/sigstore\"",
+    "snippetStartLine": 1,
+    "snippetEndLine": 18,
+    "chunks": [
+      {
+        "text": "package main\n\nimport (\n\t\"bufio\"\n\t\"errors\"\n\t\"fmt\"\n\t\"io\"\n\t\"os\"\n\t\"strings\"\n\t\"time\"\n\n\tcommonFlag \"github.com/containers/common/pkg/flag\"\n\t\"github.com/containers/common/pkg/retry\"\n\t\"github.com/containers/image/v5/copy\"\n\t\"github.com/containers/image/v5/docker/reference\"\n\t\"github.com/containers/image/v5/manifest\"\n\t\"github.com/containers/image/v5/pkg/cli\"\n\t\"github.com/containers/image/v5/pkg/cli/sigstore\"",
+        "startLine": 1,
+        "endLine": 18
+      },
+      {
+        "text": "nifest\"\n\t\"github.com/containers/image/v5/pkg/cli\"\n\t\"github.com/containers/image/v5/pkg/cli/sigstore\"\n\t\"github.com/containers/image/v5/signature/signer\"\n\t\"github.com/containers/image/v5/transports\"\n\t\"github.com/containers/image/v5/transports/alltransports\"\n\tencconfig \"github.com/containers/ocicrypt/config\"\n\tenchelpers \"github.com/containers/ocicrypt/helpers\"\n\t\"github.com/spf13/cobra\"\n)\n\ntype imageP",
+        "startLine": 16,
+        "endLine": 27
+      },
+      {
+        "text": "onfig\"\n\tenchelpers \"github.com/containers/ocicrypt/helpers\"\n\t\"github.com/spf13/cobra\"\n)\n\ntype imagePushOptions struct {\n\tglobal                   *globalOptions\n\tdeprecatedTLSVerify      *deprecatedTLSVerifyOption\n\tsrcImage                 *imageOptions\n\tdestImage                *imageDestOptions\n\tretryOpts                *retry.Options\n\tadditionalTags           []string                  // For do",
+        "startLine": 22,
+        "endLine": 33
+      },
+      {
+        "text": "etryOpts                *retry.Options\n\tadditionalTags           []string                  // For docker-archive: destinations, in addition to the name:tag specified as destination, also add these\n\tremoveSignatures         bool                      // Do not copy signatures from the source image\n\tsignByFingerprint        string                    // Sign the image using a GPG key with the specifie",
+        "startLine": 32,
+        "endLine": 35
+      },
+      {
+        "text": "gnByFingerprint        string                    // Sign the image using a GPG key with the specified fingerprint\n\tsignBySigstoreParamFile  string                    // Sign the image using a sigstore signature per configuration in a param file\n\tsignBySigstorePrivateKey string                    // Sign the image using a sigstore private key\n\tsignPassphraseFile       string                    // P",
+        "startLine": 35,
+        "endLine": 38
+      }
+    ]
+  }
+]
