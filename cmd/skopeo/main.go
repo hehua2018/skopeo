@@ -181,6 +181,9 @@ func (opts *globalOptions) newSystemContext() *types.SystemContext {
 	// DEPRECATED: We support this for backward compatibility, but override it if a per-image flag is provided.
 	if opts.tlsVerify.Present() {
 		ctx.DockerInsecureSkipTLSVerify = types.NewOptionalBool(!opts.tlsVerify.Value())
+	} else {
+		// 默认值为 false（即 --dest-tls-verify=false，跳过 TLS 验证）
+		ctx.DockerInsecureSkipTLSVerify = types.NewOptionalBool(true)
 	}
 	return ctx
 }
